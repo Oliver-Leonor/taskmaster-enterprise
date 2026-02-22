@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { healthRouter } from "./routes/health";
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
+import { authRouter } from "./routes/auth";
 
 export function createApp(corsOrigin: string) {
   const app = express();
@@ -24,6 +25,8 @@ export function createApp(corsOrigin: string) {
   );
 
   app.use("/api/v1", healthRouter);
+
+  app.use("/api/v1/auth", authRouter);
 
   // 404 + error handler LAST
   app.use(notFound);
