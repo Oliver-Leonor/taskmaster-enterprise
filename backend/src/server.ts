@@ -2,6 +2,8 @@ import "dotenv/config";
 import { loadEnv } from "./config/env";
 import { connectDb } from "./config/db";
 import { createApp } from "./app";
+import dns from "node:dns/promises";
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 async function main() {
   const env = loadEnv();
