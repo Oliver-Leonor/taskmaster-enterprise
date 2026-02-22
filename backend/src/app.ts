@@ -1,9 +1,11 @@
+// backend/src/app.ts
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import { healthRouter } from "./routes/health";
+import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
 
 export function createApp(corsOrigin: string) {
@@ -23,6 +25,9 @@ export function createApp(corsOrigin: string) {
 
   app.use("/api/v1", healthRouter);
 
+  // 404 + error handler LAST
+  app.use(notFound);
   app.use(errorHandler);
+
   return app;
 }
