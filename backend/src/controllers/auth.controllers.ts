@@ -55,3 +55,8 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
     next(e);
   }
 }
+
+export async function me(req: Request, res: Response, _next: NextFunction) {
+  // requireAuth will guarantee req.user exists
+  res.json({ user: req.user });
+}

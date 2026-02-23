@@ -9,7 +9,10 @@ async function main() {
   const env = loadEnv();
   await connectDb(env.MONGO_URI);
 
-  const app = createApp(env.CORS_ORIGIN);
+  const app = createApp({
+    corsOrigin: env.CORS_ORIGIN,
+    jwtAccessSecret: env.JWT_ACCESS_SECRET,
+  });
   app.listen(env.PORT, () => {
     console.log(`API listening on http://localhost:${env.PORT}`);
   });
