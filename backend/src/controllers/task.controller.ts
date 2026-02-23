@@ -52,8 +52,11 @@ export async function updateById(
   next: NextFunction,
 ) {
   try {
+    const ifUnmodifiedSince = req.header("if-unmodified-since") ?? undefined;
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const task = await TaskService.updateTaskById(req.user!, id, req.body);
+    const task = await TaskService.updateTaskById(req.user!, id, req.body, {
+      ifUnmodifiedSince,
+    });
     res.json({ task: toTaskJson(task) });
   } catch (e) {
     next(e);

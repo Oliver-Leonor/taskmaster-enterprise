@@ -1,5 +1,27 @@
-import { NotFoundError, ValidationError } from "../utils/errors";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+  AuthorizationError,
+} from "../utils/errors";
 import * as TaskRepo from "../repositories/task.repository";
+
+const allowedTransitions: Record<TaskRepo.TaskStatus, TaskRepo.TaskStatus[]> = {
+  todo: ["in_progress", "done"],
+  in_progress: ["todo", "done"],
+  done: ["in_progress"],
+};
+
+function assertValidStatusTransition(
+  from: TaskRepo.TaskStatus,
+  to: TaskRepo.TaskStatus,
+) {
+  if (from === to) return;
+  const allowed = allowedTransitions[from] ?? [];
+  if (!allowed.includes(to)) {
+    throw new ValidationError(`Invalid status transition: ${from} -> ${to}`);
+  }
+}
 
 type Role = "admin" | "manager" | "user";
 type Actor = { id: string; role: Role };
@@ -41,6 +63,7 @@ export async function updateTaskById(
   actor: Actor,
   taskId: string,
   input: { title?: string; status?: TaskRepo.TaskStatus },
+  opts?: { ifUnmodifiedSince?: string },
 ) {
   const update: Record<string, unknown> = {};
   if (typeof input.title !== "undefined") update.title = input.title;
@@ -49,11 +72,44 @@ export async function updateTaskById(
   if (Object.keys(update).length === 0)
     throw new ValidationError("No fields to update");
 
-  const filter: Record<string, unknown> = { _id: taskId, deletedAt: null };
-  if (!isPrivileged(actor.role)) filter.ownerId = actor.id;
+  const baseFilter: Record<string, unknown> = { _id: taskId, deletedAt: null };
+  if (!isPrivileged(actor.role)) baseFilter.ownerId = actor.id;
 
-  const updated = await TaskRepo.updateTask(filter, { $set: update });
-  if (!updated) throw new NotFoundError("Task not found");
+  // 1) Fetch current for transition rules + existence checks
+  const current = await TaskRepo.findTask(baseFilter);
+  if (!current) throw new NotFoundError("Task not found");
+
+  // 2) Validate status transitions (if status provided)
+  if (typeof input.status !== "undefined") {
+    assertValidStatusTransition(
+      current.status as TaskRepo.TaskStatus,
+      input.status,
+    );
+  }
+
+  // 3) Optimistic concurrency check
+  const filterWithConcurrency: Record<string, unknown> = { ...baseFilter };
+  if (opts?.ifUnmodifiedSince) {
+    const expected = new Date(opts.ifUnmodifiedSince);
+    if (Number.isNaN(expected.getTime()))
+      throw new ValidationError("Invalid If-Unmodified-Since header");
+    filterWithConcurrency.updatedAt = expected;
+  }
+
+  const updated = await TaskRepo.updateTask(filterWithConcurrency, {
+    $set: update,
+  });
+
+  // If concurrency was provided and update failed, treat as conflict (not 404)
+  if (!updated) {
+    if (opts?.ifUnmodifiedSince) {
+      throw new ConflictError(
+        "Task was modified by someone else. Refresh and try again.",
+      );
+    }
+    throw new NotFoundError("Task not found");
+  }
+
   return updated;
 }
 
@@ -69,7 +125,7 @@ export async function deleteTaskById(actor: Actor, taskId: string) {
 
 export async function restoreTaskById(actor: Actor, taskId: string) {
   if (!isPrivileged(actor.role))
-    throw new ValidationError("Only admin/manager can restore tasks");
+    throw new AuthorizationError("Only admin/manager can restore tasks");
 
   const restored = await TaskRepo.restoreTask({ _id: taskId });
   if (!restored) throw new NotFoundError("Task not found");
