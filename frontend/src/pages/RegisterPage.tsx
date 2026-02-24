@@ -9,6 +9,7 @@ import { api } from "../lib/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent, CardHeader } from "../components/ui/Card";
+import { authStore } from "../lib/authStore";
 
 const schema = z.object({
   email: z.string().email(),
@@ -29,8 +30,10 @@ export function RegisterPage() {
     try {
       setLoading(true);
       const res = await api.register(values.email, values.password);
-      localStorage.setItem("tm_access", res.accessToken);
-      localStorage.setItem("tm_refresh", res.refreshToken);
+      authStore.setTokens({
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+      });
       toast.success("Account created");
       navigate("/app/tasks", { replace: true });
     } catch (e: any) {

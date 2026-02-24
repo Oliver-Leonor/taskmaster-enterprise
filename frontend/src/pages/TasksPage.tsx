@@ -32,6 +32,7 @@ import { TaskSkeleton } from "../components/TaskSkeleton";
 import { Pagination } from "../components/Pagination";
 import { TaskModal } from "../components/TaskModal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useHotkeys } from "../lib/useHotkeys";
 
 function isPrivileged(role?: string) {
   return role === "admin" || role === "manager";
@@ -96,6 +97,20 @@ export function TasksPage() {
     ...(status !== "all" ? { status } : {}),
     ...(qDebounced ? { q: qDebounced } : {}),
   };
+
+  const searchRef = React.useRef<HTMLInputElement | null>(null);
+
+  useHotkeys(
+    {
+      n: () => openCreate(),
+      "/": () => searchRef.current?.focus(),
+      escape: () => {
+        setModalOpen(false);
+        setConfirmOpen(false);
+      },
+    },
+    true,
+  );
 
   // reset page when filters change
   React.useEffect(() => {
@@ -305,6 +320,7 @@ export function TasksPage() {
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
+                ref={searchRef}
                 className="pl-9"
                 placeholder="Search tasks..."
                 value={q}
@@ -360,11 +376,18 @@ export function TasksPage() {
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                <Plus className="h-5 w-5" />
+              </div>
               <div className="text-base font-semibold">No tasks yet</div>
               <div className="mt-1 text-sm text-slate-500">
-                Create one and start shipping.
+                Press{" "}
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">
+                  N
+                </span>{" "}
+                to create one, or start by writing a simple next step.
               </div>
-              <div className="mt-4">
+              <div className="mt-4 flex justify-center">
                 <Button onClick={openCreate}>Create your first task</Button>
               </div>
             </div>
