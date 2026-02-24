@@ -1,12 +1,11 @@
-import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "./api";
 
-export function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = React.useState(value);
-
-  React.useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(t);
-  }, [value, delayMs]);
-
-  return debounced;
+export function useMeQuery(enabled: boolean) {
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: () => api.me(),
+    enabled,
+    staleTime: 60_000,
+  });
 }
