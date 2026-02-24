@@ -4,12 +4,18 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+
+import { logger } from "./config/logger";
+import { requestId } from "./middleware/requestId";
+
 import { healthRouter } from "./routes/health";
-import { notFound } from "./middleware/notFound";
 import { createAuthRouter } from "./routes/auth";
 import { createTasksRouter } from "./routes/tasks";
+// If you already created Swagger routes, uncomment this:
+// import { docsRouter } from "./routes/docs";
+
+import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
-import { authRouter } from "./routes/auth";
 
 export function createApp(opts: {
   corsOrigin: string;
@@ -17,11 +23,29 @@ export function createApp(opts: {
 }) {
   const app = express();
 
+  // 1) request id FIRST (so every log + error has it)
+  app.use(requestId);
+
+  // 2) security + parsing
   app.use(helmet());
   app.use(cors({ origin: opts.corsOrigin, credentials: true }));
   app.use(express.json());
-  app.use(morgan("dev"));
 
+  // 3) log requests via morgan -> winston (with request id)
+  morgan.token("rid", (req) => (req as any).requestId || "-");
+
+  app.use(
+    morgan(
+      ":method :url :status :res[content-length] - :response-time ms rid=:rid",
+      {
+        stream: {
+          write: (message) => logger.info(message.trim()),
+        },
+      },
+    ),
+  );
+
+  // 4) rate limiting
   app.use(
     rateLimit({
       windowMs: 60 * 1000,
@@ -29,7 +53,12 @@ export function createApp(opts: {
     }),
   );
 
+  // 5) routes
   app.use("/api/v1", healthRouter);
+
+  // If you already added Swagger:
+  // app.use("/api/v1", docsRouter);
+
   app.use(
     "/api/v1/auth",
     createAuthRouter({ jwtAccessSecret: opts.jwtAccessSecret }),
@@ -39,6 +68,7 @@ export function createApp(opts: {
     createTasksRouter({ jwtAccessSecret: opts.jwtAccessSecret }),
   );
 
+  // 6) 404 + error handler LAST
   app.use(notFound);
   app.use(errorHandler);
 
