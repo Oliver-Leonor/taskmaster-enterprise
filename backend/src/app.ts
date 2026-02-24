@@ -11,8 +11,8 @@ import { requestId } from "./middleware/requestId";
 import { healthRouter } from "./routes/health";
 import { createAuthRouter } from "./routes/auth";
 import { createTasksRouter } from "./routes/tasks";
-// If you already created Swagger routes, uncomment this:
-// import { docsRouter } from "./routes/docs";
+
+import { docsRouter } from "./routes/docs";
 
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
@@ -56,8 +56,7 @@ export function createApp(opts: {
   // 5) routes
   app.use("/api/v1", healthRouter);
 
-  // If you already added Swagger:
-  // app.use("/api/v1", docsRouter);
+  app.use("/api/v1", docsRouter);
 
   app.use(
     "/api/v1/auth",
