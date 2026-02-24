@@ -21,6 +21,7 @@ export function errorHandler(
     });
   }
 
+  // Known, expected errors
   if (err instanceof AppError) {
     logger.warn("AppError", {
       requestId: req.requestId,
@@ -39,8 +40,25 @@ export function errorHandler(
     });
   }
 
-  logger.error("Unhandled error", { requestId: req.requestId, err });
+  // ✅ Unknown errors: log message + stack so we can debug
+  const name = anyErr?.name;
+  const message = anyErr?.message;
+  const stack = anyErr?.stack;
+
+  logger.error("Unhandled error", {
+    requestId: req.requestId,
+    name,
+    message,
+    stack,
+  });
+
+  // Helpful dev response (still safe enough for local)
+  const isProd = process.env.NODE_ENV === "production";
   return res.status(500).json({
-    error: { code: "INTERNAL_SERVER_ERROR", message: "Something went wrong." },
+    error: {
+      code: "INTERNAL_SERVER_ERROR",
+      message: isProd ? "Something went wrong." : message || "Internal error",
+      requestId: req.requestId,
+    },
   });
 }
